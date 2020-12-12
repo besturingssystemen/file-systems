@@ -10,11 +10,15 @@
   - [Superblock](#superblock)
 - [Performantie](#performantie)
   - [Buffer cache](#buffer-cache)
+- [Consistency](#consistency)
   - [Transaction log](#transaction-log)
 - [Disk space management](#disk-space-management)
   - [Bitmap](#bitmap)
-- [Files](#files)
-  - [Inodes](#inodes)
+- [File tree](#file-tree)
+  - [Disk Inodes](#disk-inodes)
+  - [Memory inodes](#memory-inodes)
+  - [Directory tree](#directory-tree)
+- [File descriptors](#file-descriptors)
   
 ## Voorbereiding
 
@@ -115,7 +119,8 @@ Dat kan allemaal lang duren.
 Hoewel een Solid State Drive al een stuk sneller is, is een leesoperatie uit een SSD schijf nog steeds enkele grootte-ordes trager dan een leesoperatie uit RAM geheugen.
 
 > :information_source: De tijd tussen een leesoperatie en het moment dat de data beschikbaar is vanuit RAM geheugen [wordt gemeten in nanoseconden](https://en.wikipedia.org/wiki/CAS_latency).
-Voor een SSD [wordt dit gemeten in microseconden](https://blocksandfiles.com/2020/09/08/seven-attempts-to-speed-processing-with-faster-storage/) (1 microseconde = 1000 nanoseconden). Voor een HDD [gaat dit zelfs over miliseconden](https://en.wikipedia.org/wiki/Hard_disk_drive_performance_characteristics) (1 miliseconde = 1000 microseconden).
+> Voor een SSD [wordt dit gemeten in microseconden](https://blocksandfiles.com/2020/09/08/seven-attempts-to-speed-processing-with-faster-storage/) (1 microseconde = 1000 nanoseconden). 
+> Voor een HDD [gaat dit zelfs over miliseconden](https://en.wikipedia.org/wiki/Hard_disk_drive_performance_characteristics) (1 miliseconde = 1000 microseconden).
 
 ### Buffer cache
 
@@ -130,6 +135,8 @@ De buffer cache wordt voorgesteld door een *doubly linked list* van buffers (gec
 
 Het gevolg van het invoeren van een cache laag is dat lees- en schrijfoperaties niet meer rechtstreeks naar de harde schijf worden gestuurd.
 Pas wanneer buffers expliciet weggeschreven worden met `bwrite` is een aanpassing van de inhoud van een blok effectief bewaard in de long term storage.
+
+## Consistency
 
 ### Transaction log
 
@@ -174,22 +181,105 @@ Je zal deze operaties terugvinden in verschillende system calls die gebruik make
 
 ## Disk space management
 
+Herinner je dat de [`kalloc`][kalloc] en [`kfree`][kfree] functies gebruikt werden om fysiek geheugen te beheren.
+Vrije frames worden in een gelinkte lijst bewaard, bij allocatie wordt een frame uit deze lijst gehaald en gealloceerd.
+
+Zoals fysiek geheugen opgedeeld is in frames, zo wordt diskgeheugen opgedeeld in blokken.
+Om blokken  diskgeheugen te alloceren hebben we gelijkaardige functies [`balloc`][balloc] en [`bfree`][bfree].
+
 ### Bitmap
 
-## Files
+`balloc` en `bfree` werken echter niet met een gelinkte lijst om vrije blokken te beheren.
+In de plaats daarvan wordt een [*bitmap*](https://en.wikipedia.org/wiki/Bit_array) gebruikt.
 
-### Inodes
+De bitmap bestaat uit één (of meerdere) blokken geheugen op de disk.
+Elke bit van deze blokken verwijst naar een specifieke diskblok.
+Indien de bit van een blok in de bitmap `1` is, is de diskblok gealloceerd.
+Indien de bit van een blok in de bitmap `0` is, is deze diskblok vrij om gebruikt te worden.
 
-<!-- TODO -->
+Om te kijken of een blok vrij is moet je dus kijken in de bitmap naar de bit die verwijst naar de blok geheugen.
+Indien de bit `0` is, is de blok vrij.
+Om de blok te alloceren moet je deze bit op `1` zetten.
 
-<!-- TODO -->
+> **:question: Waarom maakt xv6 gebruik van een bitmap voor `balloc` en een gelinkte lijst voor `kalloc`? Zou een bitmap voor `kalloc` ook mogelijk zijn? Zou een gelinkte lijst voor `balloc` mogelijk zijn? Kan je voor- of nadelen bedenken? Zou jij dezelfde keuze maken als xv6?**
+
+## File tree
+
+De voorgaande secties gingen telkens over het beheer van de disk.
+Hoe schrijf je naar de disk, hoe lees je van de disk, hoe alloceer je blokken op de disk, ... .
+Nu al deze vragen opgelost zijn kunnen we kijken naar de echte organisatie van bestanden op deze disk.
+Hoe stel je bestanden voor?
+Waar bewaar je deze bestanden?
+Waar bewaar je de directories waarin deze bestanden zitten?
+Dat zijn enkele van de vragen die we in deze sectie zullen beantwoorden.
+
+Files in file systems worden typisch georganiseerd door middel van een [boomstructuur](https://en.wikipedia.org/wiki/Tree_(data_structure)) van directories (folders/mappen) en bestanden.
+Elke directory kan ofwel subdirectories, ofwel bestanden bevatten.
+De root directory (in UNIX-based systemen wordt deze directory `/` genoemd) is het startpunt, de buitenste folder.
+
+In UNIX systemen worden bepaalde *device drivers* ook voorgesteld door middel van speciale bestanden in het file system.
+Schrijfoperaties of leesoperaties naar deze bestanden worden doorgestuurd naar de overeenkomstige *driver*.
+Zo is het eenvoudig om dezelfde I/O interface te gebruiken voor devices als voor files.
+Dit zijn dus geen normale bestanden.
+Ze worden vaak [device files](https://en.wikipedia.org/wiki/Device_file) of special files genoemd.
+
+Elke *node* van de boomstructuur kan dus een bestand, directory, of een special file zijn.
+Deze *nodes* worden in xv6 en andere UNIX-based file systems voorgesteld door [`inodes`](https://en.wikipedia.org/wiki/Inode).
+
+### Disk Inodes
+
+Een `inode` stelt abstract een node voor in de boomstructuur van het file system.
+Op de disk worden alle `inodes` van een file system bewaard.
+
+Deze worden in xv6 voorgesteld door een [`struct dinode`][dinode] (disk inode).
+Een `struct dinode` heeft een `type`, dat kan verwijzen naar een bestand, directory of special file.
+De grootte in bytes van een bestand wordt bewaard in `size`.
+De inhoud van het bestand wordt bewaard op één of meerdere blokken van de disk.
+
+
+![disk-inode](img/dinode.png)
+
+De `addrs` array bevat de disk addressen van verschillende diskblokken.
+De addressen in deze array bevatten allen een deel van het bestand.
+De grootte van deze array is `NDIRECT + 1`.
+Er zijn dus `NDIRECT` mogelijke disk blokken die data van het bestand kunnen bevatten.
+Een bestand kan dus grootte `NDIRECT * BSIZE` hebben.
+
+Op locatie `addrs[NDIRECT]` bevindt zich echter nog een speciale disk blok.
+Op deze disk blok staan nog eens `NINDIRECT` verschillende disk adressen.
+Ook deze `NINDIRECT` blokken kunnen data van het bestand bevatten.
+Een bestand kan dus `(NDIRECT + NINDIRECT) * BSIZE)` blokken hebben.
+De eerste `NDIRECT` blokken kan je terugvinden in de `struct dinode`, de laatste `NINDIRECT` blokken in de blok op adres `addrs[NDIRECT]`.
+
+> **:question: Wat is de maximale bestandsgrootte in xv6? Hoe zou je xv6 kunnen aanpassen om bestanden van arbitraire grootte toe te laten?**
+
+<!-- TODO oefening die grotere bestanden toelaat -->
+### Memory inodes
+
+
+
+
+<!-- TODO in memory representatie van inodes uitleggen -->
+### Directory tree
+
+<!-- TODO directory boommstructuur uitwerken -->
+
+## File descriptors
+
+<!-- TODO file descriptors uitleggen -->
+
 
 [block_size]:https://github.com/besturingssystemen/xv6-riscv/blob/02ca399d0590a57d9ba05fcf556546141a5e2a09/kernel/fs.h#L11
 [superblock]:https://github.com/besturingssystemen/xv6-riscv/blob/02ca399d0590a57d9ba05fcf556546141a5e2a09/kernel/fs.h#L19
-[bget]:https://github.com/besturingssystemen/xv6-riscv/blob/bss/kernel/bio.c#L55
-[bread]:https://github.com/besturingssystemen/xv6-riscv/blob/bss/kernel/bio.c#L91
-[bwrite]:https://github.com/besturingssystemen/xv6-riscv/blob/bss/kernel/bio.c#L105
-[begin_op]:https://github.com/besturingssystemen/xv6-riscv/blob/bss/kernel/log.c#L125
-[end_op]:https://github.com/besturingssystemen/xv6-riscv/blob/bss/kernel/log.c#L144
-[log_write]:https://github.com/besturingssystemen/xv6-riscv/blob/bss/kernel/log.c#L205
-[write_log]:https://github.com/besturingssystemen/xv6-riscv/blob/bss/kernel/log.c#L177
+[bget]:https://github.com/besturingssystemen/xv6-riscv/blob/028af2764622d489583cd88935cd1d2a7fbe8248/kernel/bio.c#L55
+[bread]:https://github.com/besturingssystemen/xv6-riscv/blob/028af2764622d489583cd88935cd1d2a7fbe8248/kernel/bio.c#L91
+[bwrite]:https://github.com/besturingssystemen/xv6-riscv/blob/028af2764622d489583cd88935cd1d2a7fbe8248/kernel/bio.c#L105
+[begin_op]:https://github.com/besturingssystemen/xv6-riscv/blob/2501560cd691fcdb9c310dccc14ac4e7486c99d9/kernel/fs.c#L125
+[end_op]:https://github.com/besturingssystemen/xv6-riscv/blob/2501560cd691fcdb9c310dccc14ac4e7486c99d9/kernel/fs.c#L144
+[log_write]:https://github.com/besturingssystemen/xv6-riscv/blob/2501560cd691fcdb9c310dccc14ac4e7486c99d9/kernel/fs.c#L205
+[write_log]:https://github.com/besturingssystemen/xv6-riscv/blob/2501560cd691fcdb9c310dccc14ac4e7486c99d9/kernel/fs.c#L177
+[kalloc]: https://github.com/besturingssystemen/xv6-riscv/blob/85bfd9e71f6d0dc951ebd602e868880dedbe1688/kernel/kalloc.c#L65
+[kfree]: https://github.com/besturingssystemen/xv6-riscv/blob/85bfd9e71f6d0dc951ebd602e868880dedbe1688/kernel/kalloc.c#L42
+[balloc]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L63
+[bfree]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L89
+[dinode]:https://github.com/besturingssystemen/xv6-riscv/blob/02ca399d0590a57d9ba05fcf556546141a5e2a09/kernel/fs.h#L36
