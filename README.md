@@ -128,34 +128,50 @@ De buffer cache wordt voorgesteld door een *doubly linked list* van buffers (gec
 * Bekijk de functie [`bget`][bget] in `kernel/bio.c`. Deze functie wordt gebruikt door [`bread`][bread] en [`bwrite`][bwrite] om een buffer overeenkomstig met een gegeven bloknummer op te vragen. Indien de blok niet gecacht is wordt er gezocht naar een ongebruikte buffer in de buffer cache en wordt deze buffer toegewezen aan een specifieke blok.
 * Bekijk de functie [`bread`][bread] en [`bwrite`][bwrite]. `bread` vraagt aan `bget` een buffer voor een specifiek bloknummer. Indien deze buffer zonet door `bget` hergebruikt werd bevatte deze nog foute data van een andere blok (`b->valid == 0`), en wordt de juiste blokdata van de disk gelezen. `bwrite` zorgt ervoor dat de data in een buffer naar de correcte blok in de mass storage wordt geschreven.
 
-Het gevolg van het invoeren van een cache laag is dat lees- en schrijfoperaties niet meer rechtstreeks naar de harde schijf verlopen.
+Het gevolg van het invoeren van een cache laag is dat lees- en schrijfoperaties niet meer rechtstreeks naar de harde schijf worden gestuurd.
 Pas wanneer buffers expliciet weggeschreven worden met `bwrite` is een aanpassing van de inhoud van een blok effectief bewaard in de long term storage.
-
-Dit zorgt voor een grote uitdaging.
-Een besturingssysteem kan op ieder moment crashen, ter gevolg van een fout in de code of gewoon door stroom die wegvalt.
-Op dat moment kunnen er echter nog een hoop aangepaste disk blokken in de cache zitten met nieuwe data, die nog niet correct weggeschreven zijn naar de onderliggende mass storage.
-Indien bepaalde operaties bestanden bewerken en sommige schrijfoperaties zijn reeds op de harde schijf doorgevoerd en andere operaties niet, kan het file system in een inconsistente toestand terecht komen.
 
 ### Transaction log
 
-xv6 lost dit op door middel van [transacties](https://en.wikipedia.org/wiki/Transaction_processing).
+Een besturingssysteem kan op ieder moment crashen, ter gevolg van een fout in de code of gewoon door stroom die wegvalt.
+Stel dat je echter besturingssysteemcode hebt die een gegevensstructuur aanpast op de disk, bijvoorbeeld code die een bestand uit het file system verwijderd, die bestaat uit meerdere schrijfoperaties.
+
+Stel dat schrijfoperatie *W<sub>a</sub>* het bestand uit de directorystructuur haalt, en schrijfoperatie *W<sub>b</sub>* de gealloceerde file system blokken als ongebruikt markeert.
+Indien enkel *W<sub>a</sub>* uitgevoerd zou worden, zou een bestand dat niet in de directorystructuur zit nog steeds plaats innemen op de disk. Je zou dus een memory leak hebben.
+Indien enkel *W<sub>b</sub>* uitgevoerd zou worden, zou een bestand in de directory verwijzen naar niet-gealloceerde blokken uit het file system, die eventueel later aan een ander bestand zouden gekoppeld worden.
+
+Sommige operaties bestaan uit verschillende schrijfoperaties, die allemaal uitgevoerd moeten worden, om te vermijden dat het file system in een inconsistente staat terecht komt.
+xv6 lost deze uitdaging op door middel van [transacties](https://en.wikipedia.org/wiki/Transaction_processing).
 Een transactie groepeert verschillende schrijfoperaties.
 Er wordt gegarandeerd dat ofwel alle schrijfoperaties in een transactie uitgevoerd worden, ofwel geen enkele.
 Dit wordt gegarandeerd via een *transaction log*.
 
 Alle gegroepeerde schrijfoperaties in een transactie worden eerst geschreven naar een aparte regio van de disk, de log.
-Wanneer al deze wijzigingen zich op de disk bevinden (maar dus nog niet in de correcte block), weten we zeker dat de nieuwe data effectief weggeschreven kan worden.
-Een crash kan er namelijk niet meer voor zorgen dat data uit de transactie verloren gaat, alle data staat op non-volatile storage.
-Op dat moment kan de transactie gecommit worden, en kunnen alle blokken van de log geschreven worden naar de correcte blok op de disk.
+Wanneer alle schrijfoperaties binnen een transactie naar de log geschreven zijn, kan je zeker zijn dat zelfs wanneer op dat moment een crash voorvalt, de geschreven data nog steeds beschikbaar is.
+Alles staat namelijk in de log op de disk.
+Op dat moment zijn de geschreven blokken op de disk echter nog niet gewijzigd.
 
-Indien er zich een crash voordoet tijdens de commitfase is dit geen probleem.
-Bij het heropstarten van de machine zal gezien worden dat de transactie log een transactie bevat die nog niet gecommit was, en zal deze transactie opnieuw ingezet worden.
-Er is geen data verloren gegaan.
-Transacties garanderen dus dat alle schrijfoperaties in één transactie ofwel samen uitgevoerd worden, ofwel niet uitgevoerd worden.
+Wanneer alle schrijfoperaties in de log staan, kan de transactie *gecommit* worden.
+De operaties kunnen vanuit de log naar de juiste plaats op de disk geschreven worden.
+Een crash kan er hoogstens voor zorgen dat het kopiëren van de log naar de juiste disk sectoren onderbroken wordt.
+Bij het opnieuw opstarten vanuit een crash, kunnen al deze schrijfoperaties echter gewoon opnieuw hervat worden, want ze staan nog steeds klaar in de log.
+Er is dan geen data verloren gegaan.
+Transacties garanderen dus dat alle schrijfoperaties in één transactie als een geheel worden uitgevoerd.
 
-Stel dat de machine crashte en de transactie was nog niet volledig klaar (slechts enkele writes stonden in de log, andere writes dan weer niet) wordt de transactie dus gewoon nooit uitgevoerd, want op dat moment kan het zijn dat het comitten van deze incomplete transactie ervoor zou zorgen dat het file system in een inconsistente state terecht komt.
+Indien de machine crashte op een moment dat de transactie nog niet volledig klaarstond in de log, wordt de transactie gewoon nooit uitgevoerd.
+Op dat moment kan het namelijk zijn dat het committen van deze incomplete transactie ervoor zou zorgen dat het file system in een inconsistente state terecht komt.
+Een transactie wordt dus ofwel in zijn volledigheid uitgevoerd, ofwel helemaal niet.
 
-<!-- TODO codevoorbeelden toevoegen -->
+De functies [`begin_op`][begin_op] en [`end_op`][end_op] worden gebruikt om een transactie te starten en te beëindigen.
+Je zal deze operaties terugvinden in verschillende system calls die gebruik maken van het file system.
+
+> **:question: Bekijk de functie [`log_write`][log_write].
+> Deze wordt gebruikt om een bewerkte buffer vanuit de cache naar de schijf te schrijven.
+> De functie [`bwrite`][bwrite] wordt echter ook gebruikt om dezelfde reden.
+> Wat is het verschil tussen deze functies?
+> Wanneer gebruik je [`bwrite`][bwrite] en wanneer gebruik je [`log_write`][log_write]?
+> De implementatie van [`write_log`][write_log] kan misschien verhelderend werken.**
+
 ## Disk space management
 
 ### Bitmap
@@ -168,8 +184,12 @@ Stel dat de machine crashte en de transactie was nog niet volledig klaar (slecht
 
 <!-- TODO -->
 
-[block_size]:https://github.com/besturingssystemen/xv6-riscv/blob/02ca399d0590a57d9ba05fcf556546141a5e2a09/kernel/fs.h#11
-[superblock]:https://github.com/besturingssystemen/xv6-riscv/blob/02ca399d0590a57d9ba05fcf556546141a5e2a09/kernel/fs.h#19
-[bget]:https://github.com/besturingssystemen/xv6-riscv/blob/bss/kernel/bio.c#55
-[bread]:https://github.com/besturingssystemen/xv6-riscv/blob/bss/kernel/bio.c#91
-[bwrite]:https://github.com/besturingssystemen/xv6-riscv/blob/bss/kernel/bio.c#105
+[block_size]:https://github.com/besturingssystemen/xv6-riscv/blob/02ca399d0590a57d9ba05fcf556546141a5e2a09/kernel/fs.h#L11
+[superblock]:https://github.com/besturingssystemen/xv6-riscv/blob/02ca399d0590a57d9ba05fcf556546141a5e2a09/kernel/fs.h#L19
+[bget]:https://github.com/besturingssystemen/xv6-riscv/blob/bss/kernel/bio.c#L55
+[bread]:https://github.com/besturingssystemen/xv6-riscv/blob/bss/kernel/bio.c#L91
+[bwrite]:https://github.com/besturingssystemen/xv6-riscv/blob/bss/kernel/bio.c#L105
+[begin_op]:https://github.com/besturingssystemen/xv6-riscv/blob/bss/kernel/log.c#L125
+[end_op]:https://github.com/besturingssystemen/xv6-riscv/blob/bss/kernel/log.c#L144
+[log_write]:https://github.com/besturingssystemen/xv6-riscv/blob/bss/kernel/log.c#L205
+[write_log]:https://github.com/besturingssystemen/xv6-riscv/blob/bss/kernel/log.c#L177
