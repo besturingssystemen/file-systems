@@ -19,7 +19,8 @@
   - [Memory inodes](#memory-inodes)
     - [Inode cache](#inode-cache)
     - [Bewerken inode](#bewerken-inode)
-  - [Directory tree](#directory-tree)
+  - [Bestanden](#bestanden)
+  - [Directory](#directory)
 - [File descriptors](#file-descriptors)
   
 ## Voorbereiding
@@ -324,13 +325,46 @@ Met behulp van [itrunc][itrunc] wordt de inhoud van een bepaalde inode volledig 
 > Zal een `writei`-operatie meteen naar de disk schrijven?
 > Zo niet, wanneer wordt de geschreven informatie dan wel effectief naar de disk geschreven?**
 
-### Directory tree
+### Bestanden
 
+Een bestand is een inode met het type `T_FILE`.
+De data van een bestand wordt bewaard in de blok(ken) van de inode.
+
+### Directory
+
+Een directory (folder) is een inode met het type `T_DIR`.
+De data van een directory inode bevat een array van *directory entries*.
+Elke entry bevat een naam en verwijst naar een inode op hetzelfde block device.
+De entries kunnen dus bestanden zijn, device files/special files of andere folders.
+Een directory entry wordt voorgesteld door een [`struct dirent`][dirent].
+
+> **:question: Stel dat je een directory hebt met exact 1 gealloceerde disk block in de inode. Wat is het maximaal aantal directory entries dat deze directory kan bevatten?**
+
+> **:question: Wat is het effectieve maximale aantal entries dat een directory in xv6 kan bevatten?**
+
+De functie [`dirlookup`][dirlookup] zoekt een directory entry in een gegeven directory.
+Dit gebeurt door met `readi` de inhoud van de directory inode te lezen, entry per entry, tot de gezochte naam teruggevonden wordt.
+Het resultaat is de inode waarnaar de directory entry verwijst.
+Met [`dirlink`][dirlink] voeg je een inode toe aan een directory.
+Elke directory heeft standaard de entry `.`, verwijzend naar zichzelf, en de entry `..`, verwijzend naar de parent directory inode.
+
+Absolute paden in directories worden in UNIX voorgesteld als volgt:
+`/dirx/diry/dirz/filename`.
+De directory `/` is de root directory, met subdirectory `dirx`.
+`dirx` heeft als subdirectory `diry`, enzovoort.
+Relatieve paden zijn paden die niet starten met `/` en worden relatief van de huidige *working directory* geresolved.
+
+De functie [`namex`][namex] neemt een absoluut of relatief pad en geeft als resultaat de inode terug waarnaar dit pad verwijst.
+
+
+<!-- TODO mogelijke oefening: langere pathnames -->
 <!-- TODO directory boommstructuur uitwerken -->
 
 ## File descriptors
 
 <!-- TODO file descriptors uitleggen -->
+
+<!-- TODO dinode vs inode verwarring anders aanpakken -->
 
 
 [block_size]:https://github.com/besturingssystemen/xv6-riscv/blob/02ca399d0590a57d9ba05fcf556546141a5e2a09/kernel/fs.h#L11
@@ -354,8 +388,12 @@ Met behulp van [itrunc][itrunc] wordt de inhoud van een bepaalde inode volledig 
 [iget]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L239
 [ilock]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L286
 
-
 [itrunc]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L407
 [stati]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L439
 [readi]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L451
 [writei]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L479
+
+[dirent]: https://github.com/besturingssystemen/xv6-riscv/blob/02ca399d0590a57d9ba05fcf556546141a5e2a09/kernel/fs.h#L61
+[dirlookup]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L526
+[dirlink]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L554
+[namex]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L623
