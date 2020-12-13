@@ -21,7 +21,8 @@
     - [Bewerken inode](#bewerken-inode)
   - [Bestanden](#bestanden)
   - [Directory](#directory)
-- [File descriptors](#file-descriptors)
+- [File abstractie in UNIX](#file-abstractie-in-unix)
+- [Full stack voorbeeld](#full-stack-voorbeeld)
   
 ## Voorbereiding
 
@@ -352,19 +353,77 @@ Absolute paden in directories worden in UNIX voorgesteld als volgt:
 `/dirx/diry/dirz/filename`.
 De directory `/` is de root directory, met subdirectory `dirx`.
 `dirx` heeft als subdirectory `diry`, enzovoort.
-Relatieve paden zijn paden die niet starten met `/` en worden relatief van de huidige *working directory* geresolved.
+Relatieve paden zijn paden die niet starten met `/` en worden relatief van de huidige *working directory* van een proces geresolved.
 
 De functie [`namex`][namex] neemt een absoluut of relatief pad en geeft als resultaat de inode terug waarnaar dit pad verwijst.
-
 
 <!-- TODO mogelijke oefening: langere pathnames -->
 <!-- TODO directory boommstructuur uitwerken -->
 
-## File descriptors
+## File abstractie in UNIX
+
+<!-- TODO code links -->
+
+Zoals we ondertussen weten worden bestanden worden voorgesteld door inodes en bewaard in directories die ook in inodes bewaard worden.
+Dat is de essentie van het file system en deze structuren worden bewaard in `fs.img`, de image file van het file system.
+
+UNIX gebruikt de file-abstractie echter ook op een tweede manier.
+In UNIX-gebaseerde systemen wordt de `struct file` gedefinieerd.
+Een `struct file` kan verwijzen naar een inode met daarin een bestand of een device, maar kan ook verwijzen naar een pipe.
+Naar elk van deze entiteiten kan je lezen of schrijven.
+Om programmeren eenvoudiger te maken, kan je devices of pipes dus openen als files.
+Je kan hierdoor dezelfde functies die gebruikt worden om te lezen of the schrijven naar bestanden, ook gebruiken om te lezen of te schrijven naar pipes of device drivers.
+
+De system call `open` wordt gebruikt om een bestand te openen (of aan te maken) in/uit het file system.
+Open bestanden bevinden zich in de `ftable`, een array van `struct file`.
+Het maximaal aantal open bestanden in xv6 is gelijk aan `NFILE`.
+Via `filealloc` wordt een een lege entry gezogd in de `ftable` en deze toegewezen.
+`fopen` zal `filealloc` dus gebruiken om een verwijzing te maken naar een nieuwe open bestand.
+
+De functie `pipealloc` uit `kernel/pipe.c` maakt een pipe aan, en gebruikt daarvoor ook `filealloc`.
+Een pipe is dus ook een entry in de file table.
+Om een pipe te implementeren wordt er echter gewoon een frame gealloceerd met `kalloc`.
+Dit heeft niets met het onderliggende file system te maken.
+
+Een proces kan een verwijzing hebben naar een open bestand in de `ftable`.
+Elk proces heeft een array van open files.
+Dit is een array van *file pointers* die wijzen naar de `ftable`.
+Een index in deze array noemen we een *file descriptor*.
+Met `fdalloc` wordt een ongebruikte file descriptor toegewezen aan een `struct file *`.
+Het is dus mogelijk dat meerdere processen via file descriptors verwijzen naar dezelfde geopende bestanden.
+Merk op dat dit bijvoorbeeld zal gebeuren na het oproepen van `fork` indien het geforkte proces open file descriptors had.
+
+Schrijven naar een device, pipe, of bestand gebeurt via `filewrite`.
+Indien de file een pipe is wordt de schrijfoperatie doorgestuurd naar `pipewrite`.
+Indien de file een device is, zal gezocht worden naar een function pointer die een specifieke schrijffunctie bevat voor dat device.
+Indien het een gewoon bestand is, zal `writei` gebruikt worden om naar de datablokken van de inode van het bestand te schrijven.
+
+In `user/init.c` wordt met behulp van de functie `mknod` een device file aangemaakt met de naam console en device major number `CONSOLE`.
+In de kernel wordt dit device major number in `consoleinit()` gelinkt aan de functies `consoleread` en `consolewrite`.
+De file descriptor `0` van het init proces verwijst dus naar de device inode met de naam console.
+Door tweemaal `dup(0)` op te roepen verwijzen ook file descriptor `1` en `2` naar de console.
+Aangezien `init` het root user process is in Linux, zullen alle processen geforked uit `init` deze configuratie overnemen, tenzij ze manueel de file descriptors overschrijven.
+File descriptor `0` wordt typisch de `stdin` genoemd, `1` de `stdout` en `2` de `stderr`.
+Standaard verwijzen deze dus naar de `console`, maar je kan deze (bvb via `>` en `<` in een shell) laten doorverwijzen naar bestanden.
+
+> :warning: Er is een belangrijk verschil tussen de `struct file` en de `struct FILE`.
+> De eerste is de structuur, gebruikt door de kernel, om files voor te stellen.
+> Deze kan niet gebruikt worden vanuit user code.
+> De `struct FILE` daarentegen is een deel van de C standard library, staat los van het operating system en is uitsluitend bedoeld voor user code.
+> Functies zoals `fopen` en `fwrite` werken met de `struct FILE` en gebruiken intern de system calls `open` en `write` die werken op basis van de file descriptors bewaard in de `struct FILE`.
+> In xv6 staat de `struct file` gedefinieerd in `kernel/file.h`.
+> De xv6 C standard library heeft geen `struct FILE`.
+
 
 <!-- TODO file descriptors uitleggen -->
 
 <!-- TODO dinode vs inode verwarring anders aanpakken -->
+
+## Full stack voorbeeld
+
+**TODO**
+
+<!-- TODO openen, schrijven naar een bestand -->
 
 
 [block_size]:https://github.com/besturingssystemen/xv6-riscv/blob/02ca399d0590a57d9ba05fcf556546141a5e2a09/kernel/fs.h#L11
