@@ -17,6 +17,8 @@
 - [File tree](#file-tree)
   - [Disk Inodes](#disk-inodes)
   - [Memory inodes](#memory-inodes)
+    - [Inode cache](#inode-cache)
+    - [Bewerken inode](#bewerken-inode)
   - [Directory tree](#directory-tree)
 - [File descriptors](#file-descriptors)
   
@@ -108,8 +110,8 @@ Het tweede veld `size` bevat de grootte, uitgedrukt in aantal blokken, van de vo
 > :bulb: Het type `uint` is telkens 4 bytes groot, de waarden staan opgeslagen in [little-endian byte order](https://en.wikipedia.org/wiki/Endianness).
 
 Vervolgens worden `nblocks`, `ninodes` en `nlog` bewaard, die respectievelijk het aantal data blokken, inodes en log blokken weergeven.
-Ten slotte bevatten `logstart`, `inodestart` en `bmapstart` de blok-adressen waar de eerste blok van respectievelijk de `log`, de `inodes` en de `bitmap` secties.
-We leggen in de komende secties uit wat de `log`, `inodes` en `bitmap` secties net voorstellen.
+Ten slotte bevatten `logstart`, `inodestart` en `bmapstart` de blok-adressen waar de eerste blok van respectievelijk de `log`, de inodes en de `bitmap` secties.
+We leggen in de komende secties uit wat de `log`, inodes en `bitmap` secties net voorstellen.
 
 ## Performantie
 
@@ -224,18 +226,17 @@ Dit zijn dus geen normale bestanden.
 Ze worden vaak [device files](https://en.wikipedia.org/wiki/Device_file) of special files genoemd.
 
 Elke *node* van de boomstructuur kan dus een bestand, directory, of een special file zijn.
-Deze *nodes* worden in xv6 en andere UNIX-based file systems voorgesteld door [`inodes`](https://en.wikipedia.org/wiki/Inode).
+Deze *nodes* worden in xv6 en andere UNIX-based file systems voorgesteld door [inodes](https://en.wikipedia.org/wiki/Inode).
 
 ### Disk Inodes
 
-Een `inode` stelt abstract een node voor in de boomstructuur van het file system.
-Op de disk worden alle `inodes` van een file system bewaard.
+Een *inode* stelt abstract een node voor in de boomstructuur van het file system.
+Op de disk worden alle inodes van een file system bewaard.
 
 Deze worden in xv6 voorgesteld door een [`struct dinode`][dinode] (disk inode).
 Een `struct dinode` heeft een `type`, dat kan verwijzen naar een bestand, directory of special file.
 De grootte in bytes van een bestand wordt bewaard in `size`.
 De inhoud van het bestand wordt bewaard op één of meerdere blokken van de disk.
-
 
 ![disk-inode](img/dinode.png)
 
@@ -254,12 +255,75 @@ De eerste `NDIRECT` blokken kan je terugvinden in de `struct dinode`, de laatste
 > **:question: Wat is de maximale bestandsgrootte in xv6? Hoe zou je xv6 kunnen aanpassen om bestanden van arbitraire grootte toe te laten?**
 
 <!-- TODO oefening die grotere bestanden toelaat -->
+
+<!-- TODO andere velden bestpreken (nlink, minor, major) -->
+
 ### Memory inodes
 
+Een [`struct dinode`][dinode] is de on-disk representatie van een inode.
+Wanneer we een dinode willen bewerken, zullen we deze in-memory voorstellen met behulp van de [`struct inode`][inode].
+De in-memory representatie heeft extra velden, die niet permanent op een disk bewaard moeten worden.
+
+> :information_source: Wanneer we vanaf nu spreken over dinode bedoelen we de specifieke on-disk representatie van een inode.
+> Een dinode is dus een structuur op een bepaalde disk.
+> Een inode is de in-memory kopie.
+> Het is mogelijk dat er meerdere disks zijn, met meerdere on-disk file systems, elk met hun eigen dinodes.
+> inodes kunnen dus naar dinodes van verschillende disks verwijzen.
+
+<!--- Het veld `dev` geeft aan op welke block device de in-memory inode opgeslagen is.
+Indien je meerdere disks hebt is het belangrijk bij te houden op welke disk de overeenkomstige dinode bewaard werd. -->
+
+Een on-disk xv6 filesystem bevat een vast aantal dinodes.
+Dit aantal wordt bewaard in de superblock `sb` in het veld `sb->ninodes`.
+Deze dinodes bevinden zich in een array op de disk, startend van blok `sb->inodestart`.
+
+Een unieke inode wordt geïdentificeerd door het paar (`dev`, `inum`).
+De waarde `dev` is de id van een block device (bvb een disk), `inum` is de index in de dinode-array van dat block device.
+Voor een specifieke [`struct inode`][inode] identificeren de velden `dev` en `inum` dus samen de exacte blok op de gegeven disk/block device waar de overeenkomstige dinode bewaard is.
+
+Om een nieuwe inode aan te maken op een block device `dev`, wordt gebruik gemaakt van de functie [`ialloc`][ialloc].
+Deze functie kijkt of er nog niet-gealloceerde dinodes (`dinode->type == 0`) beschikbaar zijn op de disk.
+Indien een niet-gealloceerde dinode gevonden wordt, wordt deze geïnitialiseerd met het gegeven type.
+
+> **:question: Waarom moet [`ialloc`][ialloc] geen gebruik maken van [`balloc`][balloc] om een nieuwe inode aan te maken?**
+
+#### Inode cache
+
+Pointers naar actieve inodes (*in xv6-code: `ip` of inode pointer*) worden in-memory bewaard in een array genaamd de inode cache (`icache`).
+De functie [`iget`][iget] kijkt of een specifieke dinode reeds in de cache aanwezig is.
+Zo ja, wordt de bestaande inode pointer teruggegeven.
+Zo niet, wordt een ongebruikte inode pointer (`ip->ref == 0`) gereturned.
 
 
+<!-- TODO Waarom is de inode cache een fixed size array??
+Zou het voor meerdere disks niet logischer zijn om een linked list te maken? Lijkt me een artificiële limitatie -->
 
-<!-- TODO in memory representatie van inodes uitleggen -->
+Het veld `ip->valid` geeft aan of de inode reeds gelezen is van de disk.
+De functie `iget` returnt namelijk enkel een inode pointer uit de cache,
+maar garandeert niet dat de inode reeds de informatie van de overeenkomstige dinode heeft uitgelezen.
+
+De functie [`ilock`][ilock] moet gebruikt worden om een lock te verkrijgen vooraleer er gelezen of geschreven mag worden naar een inode.
+[`ilock`][ilock] zal, naast het verkrijgen van een lock, ook controleren of een inode al dan niet valid (gelezen van disk) is.
+Indien dit niet het geval is, zal hier de data van de dinode uitgelezen worden met behulp van [`bread`][bread].
+
+Het is mogelijk dat dezelfde inode pointer uit de inode cache door meerdere stukken code in gebruik is op hetzelfde moment.
+Het veld `inode->ref` bewaart het aantal open referenties naar een specifieke inode.
+Wanneer een inode opgevraagd wordt met `iget` wordt deze waarde verhoogd met 1.
+Op het moment dat een stuk code een inode niet meer nodig heeft, wordt [`iput`][iput] opgeroepen.
+In `iput` wordt `inode->ref` verlaagd met 1.
+Indien de laatste referentie via `iput` wordt vrijgegeven, wordt de inode pointer terug vrijgemaakt in de cache zodat deze hergebruikt kan worden om te verwijzen naar een andere dinode.
+
+#### Bewerken inode
+
+Via een inode pointer kan de inhoud van een inode bewerkt worden.
+Met behulp van [itrunc][itrunc] wordt de inhoud van een bepaalde inode volledig gewist.
+[stati][stati] wordt gebruikt om de meta-informatie van een inode op te vragen.
+[readi][readi] en [writei][writei] worden gebruikt om respectievelijk te lezen en schrijven naar de datablokken van een inode.
+
+> **:question: Bekijk de code van [`readi`][readi] en [`writei`][writei] aandachtig en probeer te begrijpen hoe deze functies werken.
+> Zal een `writei`-operatie meteen naar de disk schrijven?
+> Zo niet, wanneer wordt de geschreven informatie dan wel effectief naar de disk geschreven?**
+
 ### Directory tree
 
 <!-- TODO directory boommstructuur uitwerken -->
@@ -283,3 +347,15 @@ De eerste `NDIRECT` blokken kan je terugvinden in de `struct dinode`, de laatste
 [balloc]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L63
 [bfree]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L89
 [dinode]:https://github.com/besturingssystemen/xv6-riscv/blob/02ca399d0590a57d9ba05fcf556546141a5e2a09/kernel/fs.h#L36
+[inode]:https://github.com/besturingssystemen/xv6-riscv/blob/2b5934300a404514ee8bb2f91731cd7ec17ea61c/kernel/file.h#L23
+
+[ialloc]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L192
+[iput]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L325
+[iget]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L239
+[ilock]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L286
+
+
+[itrunc]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L407
+[stati]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L439
+[readi]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L451
+[writei]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L479
