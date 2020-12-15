@@ -211,6 +211,41 @@ Een directory entry wordt voorgesteld door een [`struct dirent`][dirent].
 
 ### Oefening: Forensics
 
+Om de directories en files in een file system uit te lezen, hebben we geen OS nodig.
+Begrip van de disk layout en interne structuren is voldoende om puur op basis van bytes in een image file te determineren welke bestanden of directories er op de disk staan.
+Dit soort skills komen van pas bij data recovery, [forensics](https://en.wikipedia.org/wiki/Computer_forensics), etc... .
+
+In deze oefening gaan we met behulp van hexdump (`hd`) een xv6 file system analyseren.
+Clone deze repository om het bestand forensics.img te downloaden.
+
+1. Gebruik `hd` om de superblock te printen.
+
+>:bulb: De `-n` flag limiteert het aantal bytes in de output.
+Met `-n 1024` print je dus exact 1 disk block.
+Met `-s` kan je de bytes printen startend van een bepaalde byte offset.
+
+2. Achterhaal het totaal aantal inodes in deze image en op welke disk block deze inodes starten.
+
+3. Bereken de grootte van een dinode
+   
+4. Bekijk nu met `hd` de disk block waar de inodes starten. Kan je de root directory terugvinden? Op welke data block staat de root directory bewaard? Print deze data block met `hd` ter verificatie.
+
+5. De laatste entry in de root directory (hint: `struct dirent`) is opnieuw een folder. Naar welke inode verwijst deze directory?
+   
+6. Gebruik `hd` om *enkel* de inode te printen van deze folder. Welke parameters gebruik je?
+
+7. Gebruik `hd` om *enkel* de eerste data block te printen van deze folder. Welke parameters gebruik je?
+
+8. Wat voor soort `inode` is de laatste entry in deze folder? Op welke datablok(ken) staat de inhoud? Hoe groot is de entry?
+
+9. Gebruik `dd` om de file uit 7 en 8 te extracten uit het file system. Voer `man dd` uit om te kijken welke parameters je nodig  hebt. Hint: zet `bs=1`.
+
+> **:question: *Optioneel maar leerrlijk!* Automatiseer voorgaand proces. Schrijf een script dat recursief alle folders van een xv6 file system uitprint startend bij de root-folder, in een programmeertaal naar keuze.**
+
+
+
+
+
 <!-- TODO-->
 
 ## Runtime file-system
