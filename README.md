@@ -47,7 +47,7 @@ Al dit geheugen is echter vluchtig.
 Wanneer je de stroom van de machine uittrekt, is al deze data plots weg.
 
 Code en data die we willen bewaren voor een lange tijd, ook na het heropstarten van een machine, bewaren we op een opslagmedium.
-Op dit opslagmedium staat de code van het Besturingssysteem, alle data, de bestanden die een gebruiker op zijn machine heeft staan, enzovoort.
+Op dit opslagmedium staat de code van het besturingssysteem, alle data, de bestanden die een gebruiker op zijn machine heeft staan, enzovoort.
 
 Er zijn vele soorten opslagmediums, elk met hun eigen capaciteit, snelheid en eventueel andere voor- en nadelen.
 Al deze mediums kunnen gekoppeld worden aan een computer.
@@ -79,7 +79,7 @@ De verschillende apparaten kunnen we dus abstract voorstellen als apparaten waar
 Deze abstracte apparaten noemen we block devices.
 
 xv6 neemt aan dat het file system bewaard wordt op zo'n block device.
-De grootte van een blok is [in xv6 ingesteld op `BSIZE` bytes](block-size).
+De grootte van een blok is [in xv6 ingesteld op `BSIZE` bytes][block_size].
 Het block device waarop xv6 zijn file system bewaart, en dat dus opgedeeld is in blokken van grootte `BSIZE`, wordt de *disk* genoemd.
 
 > **:question: Wat is de grootte van een blok in xv6? Je kan dit best noteren, je zal dit later in de oefenzitting nodig hebben.**
@@ -101,36 +101,43 @@ Deze conventie laat ons toe om andere boot loaders te installeren of om de boot 
 
 > :bulb: De boot sector is nog geen deel van het file system.
 
-> :information_source: Mass storage devices kunnen opgedeeld worden in verschillende partities, elk met hun eigen bootgedeelte. Op sector 0 vinden we in dat geval de [Master Boot Record](https://en.wikipedia.org/wiki/Master_boot_record), met informatie over de verschillende partities op die specifieke schijf. Indien een partitie een OS bevat zal deze partitie vervolgens een [Volume Boot Record](https://en.wikipedia.org/wiki/Volume_boot_record) hebben met daarin de boot code van het OS op die partitie. Wanneer de xv6 boek of deze oefenzitting spreekt over een disk, moet je dit voorstellen als een partitie, niet als de volledige harde schijf. De boot sector van xv6 zou dus in de VBR zitten van een gepartitioneerde schijf.
+> :bulb: De boot sector wordt niet gebruikt in xv6.
+
+> :information_source: Mass storage devices kunnen opgedeeld worden in verschillende partities, elk met hun eigen bootgedeelte. Op sector 0 vinden we in dat geval de [Master Boot Record](https://en.wikipedia.org/wiki/Master_boot_record), met informatie over de verschillende partities op die specifieke schijf. Indien een partitie een OS bevat zal deze partitie vervolgens een [Volume Boot Record](https://en.wikipedia.org/wiki/Volume_boot_record) hebben met daarin de boot code van het OS op die partitie. Wanneer het xv6 boek of deze oefenzitting spreekt over een disk, moet je dit voorstellen als een partitie, niet als de volledige harde schijf. De boot sector van xv6 zou dus in de VBR zitten van een gepartitioneerde schijf.
 
 #### Superblock
 
-Blok 1 is de eerste blok van het filesystem zelf.
-In xv6 wordt deze blok de superblock genoemd.
-De superblock bevat meta-informatie over het filesystem.
-Op basis van de superblock kan je de volledige disk layout van het file system achterhalen.
+Blok 1 is het eerste blok van het filesystem zelf.
+In xv6 wordt dit blok het superblock genoemd.
+Het superblock bevat meta-informatie over het filesystem.
+Op basis van het superblock kan je de volledige disk layout van het file system achterhalen.
 
-* Bekijk [`struct superblock`](superblock) in `kernel/fs.h`. Vergelijk met bovenstaande figuur waarin de lay-out van de disk wordt beschreven.
+* Bekijk [`struct superblock`][superblock] in `kernel/fs.h`. Vergelijk met bovenstaande figuur waarin de lay-out van de disk wordt beschreven.
 
-Het veld `magic` bevat een [magic number](https://en.wikipedia.org/wiki/Magic_number_(programming)), dat gebruikt wordt om het xv6 file system te identificeren. De magic number van het xv6 file system bestaat uit de bytes `0x40 0x30 0x20 0x10`, ofwel het getal `0x10203040` voorgesteld met de [little-endian](https://en.wikipedia.org/wiki/Endianness) byte order.
-Magic numbers in bestanden en file systems worden gebruikt om de verschillende soorten van elkaar te onderscheiden. Zo start bevoorbeeld elk [ELF-bestand](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format) met de bytes `0x7F 0x45 0x4c 0x46`, de magic number van ELF-files.
+Het veld `magic` bevat een [magic number](https://en.wikipedia.org/wiki/Magic_number_(programming)), dat gebruikt wordt om het xv6 file system te identificeren. Het magic number van het xv6 file system bestaat uit de bytes `0x40 0x30 0x20 0x10`, ofwel het getal `0x10203040` voorgesteld met de [little-endian](https://en.wikipedia.org/wiki/Endianness) byte order.
+Magic numbers in bestanden en file systems worden gebruikt om de verschillende soorten van elkaar te onderscheiden. Zo start bevoorbeeld elk [ELF-bestand](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format) met de bytes `0x7F 0x45 0x4c 0x46`, het magic number van ELF-files.
 
-> **:question: Voer `make` uit in de xv6-repo. Voer vervolgens het commando `hd -n 2048 fs.img` uit. Het commando hex dump (`hd`) toont de inhoud van een bestand byte per byte. Met `-n` bekijken we enkel de eerste 2048 bytes. Kan je de magic number van het xv6 filesystem terugvinden? Wat is het byte-adres van de eerste byte van deze magic number? Waarvan komt deze waarde?**
+> **:question: Voer `make` uit in de xv6-repo. Voer vervolgens het commando `hd -s 1024 -n 1024 fs.img` uit.
+> Het commando `hd` (_hex dump_) toont de inhoud van een bestand byte per byte in hexadecimale notatie.
+> Met `-s` geven we de offset in bytes vanaf waar `hd` moet beginnen lezen.
+> Met `-n` geven we aan hoeveel bytes gelezen moeten worden.
+> Dit commando zal dus het superblock in `fs.img` afprinten.
+> Kan je het magic number van het xv6 filesystem terugvinden? Wat is het byte-adres van de eerste byte van dit magic number? Waarvan komt deze waarde?**
 
-Het tweede veld `size` bevat de grootte, uitgedrukt in aantal blokken, van de volledige file system image.
+Het tweede veld `size` bevat de grootte, uitgedrukt in aantal blokken, van het volledige file system image.
 
-> **:question: Voer nogmaals `hd -n 2048 fs.img` uit. Bereken de grootte in bytes van het file system op basis van het tweede veld `size`. Voer vervolgens `ls -l` uit en vergelijk met de grootte van `fs.img`.**
+> **:question: Bereken de grootte in bytes van het file system op basis van het tweede veld `size` dat je kan vinden via `hd`. Voer vervolgens `ls -l` uit en vergelijk met de grootte van `fs.img`.**
 >
 > :bulb: Het type `uint` is telkens 4 bytes groot, de waarden staan opgeslagen in [little-endian byte order](https://en.wikipedia.org/wiki/Endianness).
 
 Vervolgens worden `nblocks`, `ninodes` en `nlog` bewaard, die respectievelijk het aantal data blokken, inodes en log blokken weergeven.
-Ten slotte bevatten `logstart`, `inodestart` en `bmapstart` de blok-adressen waar de eerste blok van respectievelijk de `log`, de inodes en de `bitmap` secties.
+Ten slotte bevatten `logstart`, `inodestart` en `bmapstart` de blok-adressen van het eerste blok van respectievelijk de `log`, de inodes en de `bitmap` secties.
 We leggen in de komende secties uit wat de `log`, inodes en `bitmap` secties net voorstellen.
 
 ### File tree
 
 Files in file systems worden typisch georganiseerd door middel van een [boomstructuur](https://en.wikipedia.org/wiki/Tree_(data_structure)) van directories (folders/mappen) en bestanden.
-Elke directory kan ofwel subdirectories, ofwel bestanden bevatten.
+Elke directory kan zowel subdirectories als bestanden bevatten.
 De root directory (in UNIX-based systemen wordt deze directory `/` genoemd) is het startpunt, de buitenste folder.
 
 In UNIX systemen worden bepaalde *device drivers* ook voorgesteld door middel van speciale bestanden in het file system.
@@ -161,11 +168,11 @@ De grootte van de adresarray is `NDIRECT + 1`.
 Er zijn dus `NDIRECT` mogelijke disk blokken die data van het bestand kunnen bevatten.
 Een bestand kan bijgevolg al zeker grootte `NDIRECT * BSIZE` hebben.
 
-Op locatie `addrs[NDIRECT]` bevindt zich echter ook nog een speciale disk blok.
-In deze disk blok staan nog eens `NINDIRECT` verschillende disk adressen.
+Op locatie `addrs[NDIRECT]` bevindt zich echter ook nog het adres van een speciaal disk blok.
+In dit disk blok staan nog eens `NINDIRECT` verschillende disk adressen.
 Ook deze `NINDIRECT` blokken kunnen data van de inode bevatten.
-Een bestand kan dus `(NDIRECT + NINDIRECT) * BSIZE)` datablokken hebben.
-De eerste `NDIRECT` datablokken kan je terugvinden in de `struct dinode`, de laatste `NINDIRECT` blokken kan je terugvinden in het blok op adres `addrs[NDIRECT]`.
+Een inode kan dus maximaal `NDIRECT + NINDIRECT` blokken bevatten.
+De adressen van de eerste `NDIRECT` datablokken kan je terugvinden in de `struct dinode`, die van de laatste `NINDIRECT` blokken kan je terugvinden in het blok op adres `addrs[NDIRECT]`.
 
 ### Bestanden
 
