@@ -240,13 +240,7 @@ Met `-s` kan je de bytes printen startend van een bepaalde byte offset.
 
 9. Gebruik `dd` om de file uit 7 en 8 te extracten uit het file system. Voer `man dd` uit om te kijken welke parameters je nodig  hebt. Hint: zet `bs=1`.
 
-> **:question: *Optioneel maar leerrlijk!* Automatiseer voorgaand proces. Schrijf een script dat recursief alle folders van een xv6 file system uitprint startend bij de root-folder, in een programmeertaal naar keuze.**
-
-
-
-
-
-<!-- TODO-->
+> **:question: *Optioneel maar leerrlijk, volg eerst de rest van de oefenzitting!* Automatiseer voorgaand proces. Schrijf een script dat recursief alle folders van een xv6 file system uitprint startend bij de root-folder, in een programmeertaal naar keuze.**
 
 ## Runtime file-system
 
