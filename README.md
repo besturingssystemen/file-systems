@@ -226,7 +226,7 @@ Met `-s` kan je de bytes printen startend van een bepaalde byte offset.
 
 2. Achterhaal het totaal aantal inodes in deze image en op welke disk block deze inodes starten.
 
-3. Bereken de grootte van een dinode.
+3. Bereken de grootte van een [`struct dinode`][dinode].
    
 4. Bekijk nu met `hd` de disk block waar de inodes starten. Kan je de root directory terugvinden? Op welke data block staat de root directory bewaard? Print deze data block met `hd` ter verificatie.
 
