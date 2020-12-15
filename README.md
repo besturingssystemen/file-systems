@@ -218,7 +218,7 @@ Dit soort skills komen van pas bij data recovery, [forensics](https://en.wikiped
 In deze oefening gaan we met behulp van hexdump (`hd`) een xv6 file system analyseren.
 Clone deze repository om het bestand forensics.img te downloaden.
 
-1. Gebruik `hd` om de superblock te printen.
+1. Gebruik `hd` om de [`struct superblock`][superblock] te printen.
 
 >:bulb: De `-n` flag limiteert het aantal bytes in de output.
 Met `-n 1024` print je dus exact 1 disk block.
@@ -230,7 +230,7 @@ Met `-s` kan je de bytes printen startend van een bepaalde byte offset.
    
 4. Bekijk nu met `hd` de disk block waar de inodes starten. Kan je de root directory terugvinden? Op welke data block staat de root directory bewaard? Print deze data block met `hd` ter verificatie.
 
-5. De laatste entry in de root directory (hint: `struct dirent`) is opnieuw een folder. Naar welke inode verwijst deze directory?
+5. De laatste entry in de root directory (hint: [`struct dirent`][dirent]) is opnieuw een folder. Naar welke inode verwijst deze directory?
    
 6. Gebruik `hd` om *enkel* de inode te printen van deze folder. Welke parameters gebruik je?
 
