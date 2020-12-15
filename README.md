@@ -236,11 +236,11 @@ Om blokken diskgeheugen te alloceren hebben we gelijkaardige functies [`balloc`]
 In de plaats daarvan wordt een [*bitmap*](https://en.wikipedia.org/wiki/Bit_array) gebruikt.
 
 De bitmap bestaat uit één (of meerdere) blokken geheugen op de disk.
-Elke bit van deze blokken verwijst naar een specifieke diskblok.
-Indien de bit van een blok in de bitmap `1` is, is de diskblok gealloceerd.
+Elke bit van deze blokken verwijst naar een specifiek diskblok.
+Indien de bit van een blok in de bitmap `1` is, is deze diskblok gealloceerd.
 Indien de bit van een blok in de bitmap `0` is, is deze diskblok vrij om gebruikt te worden.
 
-Om te kijken of een blok vrij is moet je dus kijken in de bitmap naar de bit die verwijst naar de blok geheugen.
+Om te kijken of een blok vrij is moet je dus kijken in de bitmap naar de bit die verwijst naar dit blok.
 Indien de bit `0` is, is de blok vrij.
 Om de blok te alloceren moet je deze bit op `1` zetten.
 
@@ -260,7 +260,7 @@ Hoewel een Solid State Drive al een stuk sneller is, is een leesoperatie uit een
 #### Buffer cache
 
 Om ervoor te zorgen dat lees- en schrijfoperaties naar bestanden veel sneller kunnen verlopen, maakt het file system van xv6 gebruik van een [*cache*](https://en.wikipedia.org/wiki/Cache_(computing)).
-Wanneer een geheugenblok gelezen wordt, wordt deze geheugenblok in het RAM-geheugen geplaatst, in de *buffer cache*.
+Wanneer een geheugenblok gelezen wordt, wordt het in het RAM-geheugen geplaatst, in de *buffer cache*.
 Vanaf dan kunnen alle lees- en schrijfoperaties rechtstreeks via het RAM-geheugen verlopen, in plaats van via de harde schijf.
 
 De buffer cache wordt voorgesteld door een *doubly linked list* van buffers (gecachte blokken), gesorteerd zodat de *least recently used* buffer achteraan (`head->prev`) in de lijst staat en de *most recently used* buffer dus vooraan (`head->next`) staat.
@@ -401,7 +401,7 @@ De functie [`namex`][namex] neemt een absoluut of relatief pad en geeft als resu
 
 <!-- TODO code links -->
 
-Zoals we ondertussen weten worden bestanden worden voorgesteld door inodes en bewaard in directories die ook in inodes bewaard worden.
+Zoals we ondertussen weten worden bestanden voorgesteld door inodes en bewaard in directories die ook in inodes bewaard worden.
 Dat is de essentie van het file system en deze structuren worden bewaard in `fs.img`, de image file van het file system.
 
 UNIX gebruikt de file-abstractie echter ook op een tweede manier.
@@ -465,10 +465,10 @@ Standaard verwijzen deze dus naar de `console`, maar je kan deze (bvb via `>` en
 [bget]:https://github.com/besturingssystemen/xv6-riscv/blob/028af2764622d489583cd88935cd1d2a7fbe8248/kernel/bio.c#L55
 [bread]:https://github.com/besturingssystemen/xv6-riscv/blob/028af2764622d489583cd88935cd1d2a7fbe8248/kernel/bio.c#L91
 [bwrite]:https://github.com/besturingssystemen/xv6-riscv/blob/028af2764622d489583cd88935cd1d2a7fbe8248/kernel/bio.c#L105
-[begin_op]:https://github.com/besturingssystemen/xv6-riscv/blob/2501560cd691fcdb9c310dccc14ac4e7486c99d9/kernel/fs.c#L125
-[end_op]:https://github.com/besturingssystemen/xv6-riscv/blob/2501560cd691fcdb9c310dccc14ac4e7486c99d9/kernel/fs.c#L144
-[log_write]:https://github.com/besturingssystemen/xv6-riscv/blob/2501560cd691fcdb9c310dccc14ac4e7486c99d9/kernel/fs.c#L205
-[write_log]:https://github.com/besturingssystemen/xv6-riscv/blob/2501560cd691fcdb9c310dccc14ac4e7486c99d9/kernel/fs.c#L177
+[begin_op]:https://github.com/besturingssystemen/xv6-riscv/blob/2501560cd691fcdb9c310dccc14ac4e7486c99d9/kernel/log.c#L124
+[end_op]:https://github.com/besturingssystemen/xv6-riscv/blob/2501560cd691fcdb9c310dccc14ac4e7486c99d9/kernel/log.c#L143
+[log_write]:https://github.com/besturingssystemen/xv6-riscv/blob/2501560cd691fcdb9c310dccc14ac4e7486c99d9/kernel/log.c#L204
+[write_log]:https://github.com/besturingssystemen/xv6-riscv/blob/2501560cd691fcdb9c310dccc14ac4e7486c99d9/kernel/log.c#L176
 [kalloc]: https://github.com/besturingssystemen/xv6-riscv/blob/85bfd9e71f6d0dc951ebd602e868880dedbe1688/kernel/kalloc.c#L65
 [kfree]: https://github.com/besturingssystemen/xv6-riscv/blob/85bfd9e71f6d0dc951ebd602e868880dedbe1688/kernel/kalloc.c#L42
 [balloc]: https://github.com/besturingssystemen/xv6-riscv/blob/675060882480c21915629750a5a504d9da445ba3/kernel/fs.c#L63
