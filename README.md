@@ -3,7 +3,7 @@
 ## Inhoudstafel <!-- omit in toc -->
 
 - [Voorbereiding](#voorbereiding)
-- [GitHub classroom](#github-classroom)
+- [Repository](#repository)
 - [Introductie](#introductie)
 - [On-disk file system](#on-disk-file-system)
   - [Block device](#block-device)
@@ -35,9 +35,9 @@ Ter voorbereiding van deze zitting worden jullie verwacht:
 * De oefenzitting Synchronizatie te hebben voltoold
 * Hoofdstuk 8 van het [xv6 boek](https://github.com/besturingssystemen/xv6-riscv) te hebben gelezen.
 
-## GitHub classroom
+## Repository
 
-<!-- TODO -->
+Voor deze oefenzitting werken jullie gewoon in [onze xv6 repository][xv6 repo].
 
 ## Introductie
 
@@ -548,3 +548,5 @@ Standaard verwijzen deze dus naar de `console`, maar je kan deze (bvb via `>` en
 [stat]: https://github.com/besturingssystemen/xv6-riscv/blob/2b5934300a404514ee8bb2f91731cd7ec17ea61c/kernel/stat.h#L6
 
 [console]:https://github.com/besturingssystemen/xv6-riscv/blob/2b5934300a404514ee8bb2f91731cd7ec17ea61c/kernel/file.h#L47
+
+[xv6 repo]: https://github.com/besturingssystemen/xv6-riscv
