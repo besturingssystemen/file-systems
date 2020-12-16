@@ -186,6 +186,10 @@ Ook deze `NINDIRECT` blokken kunnen data van de inode bevatten.
 Een inode kan dus maximaal `NDIRECT + NINDIRECT` blokken bevatten.
 De adressen van de eerste `NDIRECT` datablokken kan je terugvinden in de `struct dinode`, die van de laatste `NINDIRECT` blokken kan je terugvinden in het blok op adres `addrs[NDIRECT]`.
 
+De dinodes worden op disk opgeslagen in de _inodes_ sectie beginnende bij het block aangegeven met `inodestart` in het superblock.
+De blokken in de inode sectie worden geïnterpreteerd als een array van `dinode` structs.
+Als er verwezen wordt naar een dinode, zal de gebeuren met een index in deze array.
+
 ### Bestanden
 
 Een bestand is een inode met het type `T_FILE`.
@@ -241,6 +245,8 @@ Met `-s` kan je de bytes printen startend van een bepaalde byte offset.
 3. Bereken de grootte van een [`struct dinode`][dinode].
    
 4. Bekijk nu met `hd` de disk block waar de inodes starten. Kan je de root directory terugvinden? Op welke data block staat de root directory bewaard? Print deze data block met `hd` ter verificatie.
+
+> :bulb: De root directory is altijd opgeslagen in inode 1 in xv6.
 
 5. De laatste entry in de root directory (hint: [`struct dirent`][dirent]) is opnieuw een folder. Naar welke inode verwijst deze directory?
    
