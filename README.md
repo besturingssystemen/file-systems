@@ -131,6 +131,9 @@ Magic numbers in bestanden en file systems worden gebruikt om de verschillende s
 > Alle waarden worden in hexadecimale notatie weergegeven.
 > De kolom met ASCII waarden zal een `.` tonen als de overeenkomstige byte geen ASCII interpretatie heeft.
 >
+> Als er meerdere lijnen zouden zijn met enkel 0-bytes, wordt enkel de eerste weergeven gevolgd door een lijn met een `*`.
+> De volgende getoonde lijn is de eerste die niet-0-bytes bevat.
+>
 > Via `-s` kunnen we de offset aangeven vanaf waar `hd` de inhoud van het bestand toont.
 > `-n` geeft aan hoeveel bytes getoond moeten worden.
 > Zoals met alle commando's, kan je meer informatie vinden in de _manual page_.
