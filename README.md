@@ -253,7 +253,9 @@ Met `-s` kan je de bytes printen startend van een bepaalde byte offset.
 
 > :bulb: De root directory is altijd opgeslagen in inode 1 in xv6.
 
-5. De laatste entry in de root directory (hint: [`struct dirent`][dirent]) is opnieuw een folder. Naar welke inode verwijst deze directory?
+5. De laatste entry in de root directory (hint: [`struct dirent`][dirent]) is opnieuw een folder.
+   Wat is de naam van deze directory?
+   Naar welke inode verwijst deze directory?
    
 6. Gebruik `hd` om *enkel* de inode te printen van deze folder. Welke parameters gebruik je?
 
