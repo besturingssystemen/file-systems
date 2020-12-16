@@ -174,6 +174,8 @@ Een `struct dinode` heeft een `type`, dat kan verwijzen naar een bestand, direct
 De grootte in bytes van een bestand wordt bewaard in `size`.
 De inhoud van het bestand wordt bewaard op één of meerdere blokken van de disk.
 
+> :bulb: Het type `short` is twee bytes groot in xv6.
+
 ![disk-inode](img/dinode.png)
 
 De `addrs` array bevat de diskadressen van deze verschillende diskblokken.
