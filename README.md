@@ -118,11 +118,23 @@ Het veld `magic` bevat een [magic number](https://en.wikipedia.org/wiki/Magic_nu
 Magic numbers in bestanden en file systems worden gebruikt om de verschillende soorten van elkaar te onderscheiden. Zo start bevoorbeeld elk [ELF-bestand](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format) met de bytes `0x7F 0x45 0x4c 0x46`, het magic number van ELF-files.
 
 > **:question: Voer `make` uit in de xv6-repo. Voer vervolgens het commando `hd -s 1024 -n 1024 fs.img` uit.
-> Het commando `hd` (_hex dump_) toont de inhoud van een bestand byte per byte in hexadecimale notatie.
-> Met `-s` geven we de offset in bytes vanaf waar `hd` moet beginnen lezen.
-> Met `-n` geven we aan hoeveel bytes gelezen moeten worden.
-> Dit commando zal dus het superblock in `fs.img` afprinten.
+> Dit commando zal het superblock in `fs.img` afprinten.
 > Kan je het magic number van het xv6 filesystem terugvinden? Wat is het byte-adres van de eerste byte van dit magic number? Waarvan komt deze waarde?**
+
+> :bulb: Het commando `hd` (_hex dump_) toont de inhoud van een bestand byte per byte.
+> Elke lijn van de output heeft (standaard) het volgende formaat:
+> ```ascii
+> 00000410  1e 40 00 00 02 00 00 00  20 00 00 00 2d 00 00 00  |.@...... ...-...|
+> \______/  \______________________________________________/  \________________/
+>  offset        2x 8 bytes vanaf offset in het bestand      zelfde bytes in ASCII
+> ```
+> Alle waarden worden in hexadecimale notatie weergegeven.
+> De kolom met ASCII waarden zal een `.` tonen als de overeenkomstige byte geen ASCII interpretatie heeft.
+>
+> Via `-s` kunnen we de offset aangeven vanaf waar `hd` de inhoud van het bestand toont.
+> `-n` geeft aan hoeveel bytes getoond moeten worden.
+> Zoals met alle commando's, kan je meer informatie vinden in de _manual page_.
+> Voer daarvoor het volgende commando uit in een Linux terminal: `man hd`.
 
 Het tweede veld `size` bevat de grootte, uitgedrukt in aantal blokken, van het volledige file system image.
 
