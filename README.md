@@ -505,7 +505,7 @@ Standaard verwijzen deze dus naar de `console`, maar je kan deze (bvb via `>` en
 > In xv6 staat de `struct file` gedefinieerd in `kernel/file.h`.
 > De xv6 C standard library heeft geen `struct FILE`.
 
-> **:question:Probeer abtract uit te leggen wat er in xv6 gebeurt op het moment dat je vanuit user-space naar een open bestand probeert te schrijven, van system call tot effectieve schrijfoperatie naar de harde schijf.**
+> **:question:Probeer abstract uit te leggen wat er in xv6 gebeurt op het moment dat je vanuit user-space naar een open bestand probeert te schrijven, van system call tot effectieve schrijfoperatie naar de harde schijf.**
 
 <!-- TODO file descriptors uitleggen -->
 
