@@ -468,7 +468,7 @@ Je kan hierdoor dezelfde functies die gebruikt worden om te lezen of the schrijv
 De system call `open` wordt gebruikt om een bestand te openen (of aan te maken) in/uit het file system.
 Open bestanden bevinden zich in de `ftable`, een array van `struct file`.
 Het maximaal aantal open bestanden in xv6 is gelijk aan `NFILE`.
-Via `filealloc` wordt een een lege entry gezogd in de `ftable` en deze toegewezen.
+Via `filealloc` wordt een lege entry gezocht in de `ftable` en deze toegewezen.
 `fopen` zal `filealloc` dus gebruiken om een verwijzing te maken naar een nieuwe open bestand.
 
 De functie `pipealloc` uit `kernel/pipe.c` maakt een pipe aan, en gebruikt daarvoor ook `filealloc`.
