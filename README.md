@@ -121,6 +121,8 @@ Magic numbers in bestanden en file systems worden gebruikt om de verschillende s
 > Dit commando zal het superblock in `fs.img` afprinten.
 > Kan je het magic number van het xv6 filesystem terugvinden? Wat is het byte-adres van de eerste byte van dit magic number? Waarvan komt deze waarde?**
 
+> :bulb: In sommige linux distrobutions voer je het commando `hd` uit door `hexdump` uit te voeren of te zoeken naar een equivalent commando.
+
 > :bulb: Het commando `hd` (_hex dump_) toont de inhoud van een bestand byte per byte.
 > Elke lijn van de output heeft (standaard) het volgende formaat:
 > ```ascii
